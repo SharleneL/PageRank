@@ -1,4 +1,5 @@
 from scipy import sparse
+import os
 
 __author__ = 'luoshalin'
 
@@ -48,25 +49,35 @@ def main():
     # QTSPR & PTSPR
     tspr_matrix = get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size)
     np.savetxt('tspr_matrix.txt', tspr_matrix)
-    # QTSPR
+    # QTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
     qtspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
-    # save qtspr_score_matrix_dict - START
-    print qtspr_score_matrix_dict[12][:, 0][4470]  # user 12, query 1, docid 4471
-    print qtspr_score_matrix_dict[12][:, 0][439]
-    print qtspr_score_matrix_dict[12][:, 0][242]
-    # f = open('qtspr_score.txt','w')
-        # for uid, qtspr_score_matrix in qtspr_score_matrix_dict:
-            # f.write('hi there\n') # python will convert \n to os.linesep
-    # f.close()
-    # save qtspr_score_matrix_dict - END
-    # PTSPR
+    # PTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
     ptspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
 
     # COMBINING SCORE CALCULATION
     # NS
     # WS
     # CM
-
+    # read in file -> get file name<uid, qid> -> read in line -> get<uid, qid, docid> -> search in matrix_dict -> combine scores -> write to file
+    dir_path = '../../data/hw3-resources/indri-lists'
+    res_f = open('shalinl_QTSPR_NS.txt', 'w')
+    for filename in os.listdir(dir_path):
+        file_path = dir_path + "/" + filename
+        filename = filename.split(".")[0]
+        uid = int(filename.split("-")[0])
+        qid = int(filename.split("-")[1])
+        with open(file_path) as f:
+            line = f.readline().strip()
+            while line != '':
+                docid = int(line.split()[2])
+                indri_score = float(line.split()[4])
+                line = f.readline().strip()
+                pr_score = qtspr_score_matrix_dict[uid][:, qid-1][docid-1]
+                # combine score here if needed
+                # write to file
+                res_line = str(uid) + "-" + str(qid) + " " + str(docid) + " " + str(pr_score) + "\n"
+                res_f.write(res_line)
+    res_f.close()
     # OUTPUT TO FILE
 
 
