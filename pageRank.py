@@ -9,45 +9,45 @@ from scipy import *
 
 def main():
     # INITIALIZATION
-    alpha = 0.2
-    beta = 0.4
-    gamma = 0.4
+    alpha = 0.8
+    beta = 0.1
+    gamma = 0.1
     ####### REAL ########
     size = 81433  # total number of docs # FINISHED
     print("size")
     print(size)
-    M = get_M("../data/hw3-resources/transition.txt", size)  # FINISHED
+    M = get_M("../../data/hw3-resources/transition.txt", size)  # FINISHED
     print("M got")
     p0 = np.zeros(size).transpose()  # create a [81433*1] vector, with 1/size as value # FINISHED
     p0.fill(1/float(size))
     print ("p0")
     print len(p0)
-    pt_dict = get_pt("../data/hw3-resources/doc_topics.txt", size)
+    pt_dict = get_pt("../../data/hw3-resources/doc_topics.txt", size)
     print "pt_dict"
     print len(pt_dict)
-    pu_dict = get_pu("../data/hw3-resources/user-topic-distro.txt")
+    pu_dict = get_pu("../../data/hw3-resources/user-topic-distro.txt")
     print "pu_dict"
     print len(pu_dict)
     ####### REAL ########
 
     ####### TEST ########
     # size = 4  # total number of docs # FINISHED
-    # M = get_M("../data/hw3-resources/small_transition.txt", size)  # FINISHED
+    # M = get_M("../../data/hw3-resources/small_transition.txt", size)  # FINISHED
     # p0 = np.zeros(size).transpose()  # create a [81433*1] vector, with 1/size as value # FINISHED
     # p0.fill(1/float(size))
-    # pt_dict = get_pt("../data/hw3-resources/small_doc_topics.txt", size)
-    # pu_dict = get_pu("../data/hw3-resources/user-topic-distro.txt")
+    # pt_dict = get_pt("../../data/hw3-resources/small_doc_topics.txt", size)
+    # pu_dict = get_pu("../../data/hw3-resources/user-topic-distro.txt")
     ####### TEST ########
 
     # PAGERANK CALCULATION
+    # GPR
     gpr = get_gpr(alpha, M, p0, size)
     print gpr
-    np.savetxt('res.txt', gpr)
-    # f1 = open(, 'w+')
-    # for (x, ), value in np.ndenumerate(gpr):
-    #     f1.write(str(value)+'\n')
-    # f1.close()
-    # qtspr = get_qtspr(alpha, beta, gamma,  M, pt_dict, p0, size, tid)
+    np.savetxt('gpr.txt', gpr)
+    # QTSPR & PTSPR
+    tspr_matrix = get_tspr(alpha, beta, gamma,  M, pt_dict, p0, size)
+    np.savetxt('tspr_matrix.txt', tspr_matrix)
+    # PTSPR
     # ptspr = get_ptspr(alpha, M, pu_dict, size, qid, uid)
 
     # COMBINING SCORE CALCULATION
@@ -63,7 +63,6 @@ def get_M(file_path, size):
     row = []
     col = []
     data = []
-    print file_path
 
     with open(file_path) as f:
         line = f.readline().strip()
@@ -101,7 +100,6 @@ def get_pt(file_path, size):
             else:
                 dic[topic].append(docid)
             line = f.readline().strip()
-    # print dic
 
     # construct pt_dict <topicid, vector<pt1, pt2, ..., ptn>>
     for topic, docid_list in dic.iteritems():
@@ -131,7 +129,6 @@ def get_pu(file_path):
             else:
                 pu_dict[qid][userid] = pu
             line = f.readline().strip()
-    # print pu_dict
     return pu_dict
 
 
@@ -141,14 +138,20 @@ def get_gpr(alpha, M, p0, size):
     # gpr = (1-alpha) * sparse.csr_matrix.transpose(M) * gpr + alpha * p0
     for i in range(10):
         gpr = (1-alpha) * sparse.csr_matrix.transpose(M) * gpr + alpha * p0
-        print "ITERATION!"
+        print "GPR ITERATION " + str(i+1)
     return gpr
 
 
-def get_qtspr(alpha, beta, gamma,  M, pt_dict, p0, size, tid):
-    gtspr = np.ones(1.0/float(size)).transpose()
-    gtspr = alpha * np.dot(M.transpose(), gtspr) + beta * pt_dict[tid] + gamma * p0
-    # while iteration & stop criteria - !!!!!
+def get_tspr(alpha, beta, gamma,  M, pt_dict, p0, size):
+    tspr_matrix = np.zeros(shape=(size, 12))
+    for tid in range(1, 13):
+        tspr = np.ones(size).transpose()
+        tspr.fill(1.0/float(size))
+        for i in range(10):
+            tspr = alpha * sparse.csr_matrix.transpose(M) * tspr + beta * pt_dict[tid] + gamma * p0
+            print "TSPR ITERATION " + str(i+1) + "of TID #" + str(tid)
+        tspr_matrix[:, tid-1] = tspr
+    return tspr_matrix
 
 
 def get_ptspr(alpha, M, pu_dict, size, qid, uid):  # pu_dict<qid, uv_dict<userid, vector(pu1, pu2, ..., pun))>>
