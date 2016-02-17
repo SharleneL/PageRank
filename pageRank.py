@@ -42,25 +42,26 @@ def main(argv):
 
     # PAGERANK CALCULATION
     # GPR
-    gpr_score = get_gpr_score(alpha, M, p0, size)
+    if pr_method == 'GPR':
+        pr_scores = get_gpr_score(alpha, M, p0, size)
     # print gpr_score
     # np.savetxt('gpr.txt', gpr_score)
 
     # TSPR
     tspr_matrix = get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size)
     # np.savetxt('tspr_matrix.txt', tspr_matrix)
-    # TSPR - QTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+    # TSPR - QTSPR  # a tspr_score_matrix_dict, saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
     if pr_method == 'QTSPR':
-        tspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
-    # TSPR - PTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+        pr_scores = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
+    # TSPR - PTSPR  # a tspr_score_matrix_dict, saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
     if pr_method == 'PTSPR':
-        tspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
+        pr_scores = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
 
     # COMBINING SCORE CALCULATION & OUTPUT
     # read in file -> get file name<uid, qid> -> read in line
     # -> get<uid, qid, docid> -> search in matrix_dict -> combine scores -> write to file
     dir_path = '../../data/hw3-resources/indri-lists'
-    print_combined_score(dir_path, combination_method, pr_weight, sr_weight, tspr_score_matrix_dict, output_filepath)
+    print_combined_score(dir_path, combination_method, pr_method, pr_weight, sr_weight, pr_scores, output_filepath)
 
 
 def get_M(file_path, size):
@@ -153,7 +154,7 @@ def get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size):
         tspr.fill(1.0/float(size))
         for i in range(10):
             tspr = alpha * sparse.csr_matrix.transpose(M) * tspr + beta * pt_dict[tid] + gamma * p0
-            print "TSPR ITERATION " + str(i+1) + "of TID #" + str(tid)
+            print "TSPR ITERATION " + str(i+1) + " of TID #" + str(tid)
         tspr_matrix[:, tid-1] = tspr
     return tspr_matrix
 
@@ -166,7 +167,7 @@ def get_tspr_score_matrix_dict(tspr_matrix, coeff_dict):
     return tspr_score_matrix_dict
 
 
-def print_combined_score(dir_path, combination_method, pr_weight, sr_weight, tspr_score_matrix_dict, output_filepath):
+def print_combined_score(dir_path, combination_method, pr_method, pr_weight, sr_weight, pr_scores, output_filepath):
     res_f = open(output_filepath, 'w')
     for filename in os.listdir(dir_path):
         file_path = dir_path + "/" + filename
@@ -174,13 +175,16 @@ def print_combined_score(dir_path, combination_method, pr_weight, sr_weight, tsp
         uid = int(filename.split("-")[0])
         qid = int(filename.split("-")[1])
         with open(file_path) as f:
-            
+            docid_score_list = []
             line = f.readline().strip()
             while line != '':
                 docid = int(line.split()[2])
                 sr_score = float(line.split()[4])  # search relevance score
                 line = f.readline().strip()
-                pr_score = tspr_score_matrix_dict[uid][:, qid-1][docid-1]
+                if pr_method == 'GPR':
+                    pr_score = pr_scores[docid-1]
+                else:
+                    pr_score = pr_scores[uid][:, qid-1][docid-1]
                 # combine score here if needed
                 if combination_method == 'NS':
                     combined_score = pr_score
@@ -189,9 +193,15 @@ def print_combined_score(dir_path, combination_method, pr_weight, sr_weight, tsp
                 if combination_method == 'CM':
                     # TO-DO
                     combined_score = pr_score
-                # write to file
-                res_line = str(uid) + "-" + str(qid) + " " + str(docid) + " " + str(combined_score) + "\n"
+                docid_score_list.append((docid, round(combined_score, 7)))  # round to 7 decimal digits
+
+            docid_score_list = sorted(docid_score_list, key=lambda x: x[1], reverse=True)
+            # write to file
+            rank = 1
+            for docid_score in docid_score_list:
+                res_line = str(uid) + "-" + str(qid) + " Q0 " + str(docid_score[0]) + " " + str(rank) + " " + str(docid_score[1]) + " shalinl" + "\n"
                 res_f.write(res_line)
+                rank += 1
     res_f.close()
 
 if __name__ == '__main__':
