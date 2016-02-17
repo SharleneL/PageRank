@@ -1,84 +1,66 @@
 from scipy import sparse
 import os
+import sys
 
 __author__ = 'luoshalin'
+
+# COMMAND LINE INPUT FORMAT:
+# python pageRank.y [GPR/QTSPR/PTSPR] [NS/WS/CM] -prw [prWeight] -srw [srWeight] -a [alpha] -b [beta] -g [gamma] [output_filepath]
 
 import numpy as np
 from numpy import zeros
 from scipy.sparse import *
 from scipy import *
 
-def main():
-    # INITIALIZATION
-    alpha = 0.8
-    beta = 0.1
-    gamma = 0.1
-    ####### REAL ########
+def main(argv):
+    # GET TERMINAL INPUT
+    pr_method = sys.argv[1]
+    combination_method = sys.argv[2]
+    if sys.argv[3] == '-prw':
+        pr_weight = float(sys.argv[4])
+    if sys.argv[5] == '-srw':
+        sr_weight = float(sys.argv[6])
+    if sys.argv[7] == '-a':
+        alpha = float(sys.argv[8])
+    if sys.argv[9] == '-b':
+        beta = float(sys.argv[10])
+    if sys.argv[11] == '-g':
+        gamma = float(sys.argv[12])
+    output_filepath = sys.argv[-1]
+
+    # PARAMETER INITIALIZATION
     size = 81433  # total number of docs # FINISHED
     topic_size = 12
     query_size = 6
-    print("size")
-    print(size)
+    # DATA IMPORT
     M = get_M("../../data/hw3-resources/transition.txt", size)  # FINISHED
-    print("M got")
     p0 = np.zeros(size).transpose()  # create a [81433*1] vector, with 1/size as value # FINISHED
     p0.fill(1/float(size))
-    print ("p0")
-    print len(p0)
     pt_dict = get_pt("../../data/hw3-resources/doc_topics.txt", size)
-    print "pt_dict"
-    print len(pt_dict)
     qt_coeff_dict = get_coeff("../../data/hw3-resources/query-topic-distro.txt", size, topic_size, query_size)
     ut_coeff_dict = get_coeff("../../data/hw3-resources/user-topic-distro.txt", size, topic_size, query_size)
-    ####### REAL ########
-
-    ####### TEST ########
-    # size = 4  # total number of docs # FINISHED
-    # M = get_M("../../data/hw3-resources/small_transition.txt", size)  # FINISHED
-    # p0 = np.zeros(size).transpose()  # create a [81433*1] vector, with 1/size as value # FINISHED
-    # p0.fill(1/float(size))
-    # pt_dict = get_pt("../../data/hw3-resources/small_doc_topics.txt", size)
-    # pu_dict = get_pu("../../data/hw3-resources/user-topic-distro.txt")
-    ####### TEST ########
 
     # PAGERANK CALCULATION
     # GPR
     gpr_score = get_gpr_score(alpha, M, p0, size)
-    print gpr_score
-    np.savetxt('gpr.txt', gpr_score)
-    # QTSPR & PTSPR
-    tspr_matrix = get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size)
-    np.savetxt('tspr_matrix.txt', tspr_matrix)
-    # QTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
-    qtspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
-    # PTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
-    ptspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
+    # print gpr_score
+    # np.savetxt('gpr.txt', gpr_score)
 
-    # COMBINING SCORE CALCULATION
-    # NS
-    # WS
-    # CM
-    # read in file -> get file name<uid, qid> -> read in line -> get<uid, qid, docid> -> search in matrix_dict -> combine scores -> write to file
+    # TSPR
+    tspr_matrix = get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size)
+    # np.savetxt('tspr_matrix.txt', tspr_matrix)
+    # TSPR - QTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+    if pr_method == 'QTSPR':
+        tspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
+    # TSPR - PTSPR  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+    if pr_method == 'PTSPR':
+        tspr_score_matrix_dict = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
+
+    # COMBINING SCORE CALCULATION & OUTPUT
+    # read in file -> get file name<uid, qid> -> read in line
+    # -> get<uid, qid, docid> -> search in matrix_dict -> combine scores -> write to file
     dir_path = '../../data/hw3-resources/indri-lists'
-    res_f = open('shalinl_QTSPR_NS.txt', 'w')
-    for filename in os.listdir(dir_path):
-        file_path = dir_path + "/" + filename
-        filename = filename.split(".")[0]
-        uid = int(filename.split("-")[0])
-        qid = int(filename.split("-")[1])
-        with open(file_path) as f:
-            line = f.readline().strip()
-            while line != '':
-                docid = int(line.split()[2])
-                indri_score = float(line.split()[4])
-                line = f.readline().strip()
-                pr_score = qtspr_score_matrix_dict[uid][:, qid-1][docid-1]
-                # combine score here if needed
-                # write to file
-                res_line = str(uid) + "-" + str(qid) + " " + str(docid) + " " + str(pr_score) + "\n"
-                res_f.write(res_line)
-    res_f.close()
-    # OUTPUT TO FILE
+    print_combined_score(dir_path, combination_method, pr_weight, sr_weight, tspr_score_matrix_dict, output_filepath)
 
 
 def get_M(file_path, size):
@@ -176,13 +158,41 @@ def get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size):
     return tspr_matrix
 
 
-def get_tspr_score_matrix_dict(tspr_matrix, coeff_dict):  # tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+# tspr_score_matrix_dict saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+def get_tspr_score_matrix_dict(tspr_matrix, coeff_dict):
     tspr_score_matrix_dict = dict()
     for uid, coeff_matrix in coeff_dict.iteritems():
         tspr_score_matrix_dict[uid] = np.dot(tspr_matrix, coeff_matrix)
     return tspr_score_matrix_dict
 
 
+def print_combined_score(dir_path, combination_method, pr_weight, sr_weight, tspr_score_matrix_dict, output_filepath):
+    res_f = open(output_filepath, 'w')
+    for filename in os.listdir(dir_path):
+        file_path = dir_path + "/" + filename
+        filename = filename.split(".")[0]
+        uid = int(filename.split("-")[0])
+        qid = int(filename.split("-")[1])
+        with open(file_path) as f:
+            
+            line = f.readline().strip()
+            while line != '':
+                docid = int(line.split()[2])
+                sr_score = float(line.split()[4])  # search relevance score
+                line = f.readline().strip()
+                pr_score = tspr_score_matrix_dict[uid][:, qid-1][docid-1]
+                # combine score here if needed
+                if combination_method == 'NS':
+                    combined_score = pr_score
+                if combination_method == 'WS':
+                    combined_score = pr_score * pr_weight + sr_score * sr_weight
+                if combination_method == 'CM':
+                    # TO-DO
+                    combined_score = pr_score
+                # write to file
+                res_line = str(uid) + "-" + str(qid) + " " + str(docid) + " " + str(combined_score) + "\n"
+                res_f.write(res_line)
+    res_f.close()
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
