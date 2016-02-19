@@ -11,6 +11,7 @@ In terminal, run the following command:
 `$ python pageRank.y [GPR/QTSPR/PTSPR] [NS/WS/CM] -prw [prWeight] -srw [srWeight] -a [alpha] -b [beta] -g [gamma] [output_filepath]`
 
 **Example**:
+
 `$ python pageRank.py GPR NS -prw 0.5 -srw 0.5 -a 0.8 -b 0.1 -g 0.1 output.txt`
 
 **Parameters:**
