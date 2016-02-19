@@ -1,4 +1,5 @@
-A PageRank algorithm supporting:
+# A PageRank Algorithm 
+**Supporting:**
 - Global PageRank
 - Query-based Topic Sensitive PageRank
 - Personalized Topic Sensitive PageRank
@@ -7,10 +8,10 @@ A PageRank algorithm supporting:
 In terminal, run the following command:
 `$ python pageRank.y [GPR/QTSPR/PTSPR] [NS/WS/CM] -prw [prWeight] -srw [srWeight] -a [alpha] -b [beta] -g [gamma] [output_filepath]`
 
-Example:
+**Example**:
 `$ python pageRank.py GPR NS -prw 0.5 -srw 0.5 -a 0.8 -b 0.1 -g 0.1 output.txt`
 
-Parameters:
+**Parameters:**
 - [GPR/QTSPR/PTSPR]: choose one of the three PageRank methods.
 - [NS/WS/CM]: choose one of the three combination schemes.
 - [prWeight]: PageRank weight for WS scheme; a number from 0.0 to 1.0. In NS and CM, any value entered here will be ignored.
