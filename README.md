@@ -5,7 +5,9 @@
 - Personalized Topic Sensitive PageRank
 - Weighted combination score with relevance score.
 
+**Run:**
 In terminal, run the following command:
+
 `$ python pageRank.y [GPR/QTSPR/PTSPR] [NS/WS/CM] -prw [prWeight] -srw [srWeight] -a [alpha] -b [beta] -g [gamma] [output_filepath]`
 
 **Example**:
