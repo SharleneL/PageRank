@@ -1,18 +1,20 @@
 from scipy import sparse
 import os
 import sys
+import time
+import numpy as np
+from scipy.sparse import *
+from scipy import *
 
 __author__ = 'luoshalin'
 
 # COMMAND LINE INPUT FORMAT:
 # python pageRank.y [GPR/QTSPR/PTSPR] [NS/WS/CM] -prw [prWeight] -srw [srWeight] -a [alpha] -b [beta] -g [gamma] [output_filepath]
 
-import numpy as np
-from numpy import zeros
-from scipy.sparse import *
-from scipy import *
 
 def main(argv):
+    # TIMER START
+    t0 = time.clock()
     # GET TERMINAL INPUT
     pr_method = sys.argv[1]
     combination_method = sys.argv[2]
@@ -29,33 +31,63 @@ def main(argv):
     output_filepath = sys.argv[-1]
 
     # PARAMETER INITIALIZATION
-    size = 81433  # total number of docs # FINISHED
+    size = 81433  # total number of docs
     topic_size = 12
     query_size = 6
+
     # DATA IMPORT
     M = get_M("../../data/hw3-resources/transition.txt", size)  # FINISHED
     p0 = np.zeros(size).transpose()  # create a [81433*1] vector, with 1/size as value # FINISHED
     p0.fill(1/float(size))
-    pt_dict = get_pt("../../data/hw3-resources/doc_topics.txt", size)
-    qt_coeff_dict = get_coeff("../../data/hw3-resources/query-topic-distro.txt", size, topic_size, query_size)
-    ut_coeff_dict = get_coeff("../../data/hw3-resources/user-topic-distro.txt", size, topic_size, query_size)
 
     # PAGERANK CALCULATION
     # GPR
     if pr_method == 'GPR':
         pr_scores = get_gpr_score(alpha, M, p0, size)
-    # print gpr_score
-    # np.savetxt('gpr.txt', gpr_score)
+        np.savetxt('output.txt', pr_scores)
+        # ==========/ output sample results -- start /========== #
+        # f = open("GPR-10.txt", 'w')
+        # docid = 1
+        # for pr_score in pr_scores:
+        #     res_line = str(docid) + " " + str(pr_score) + "\n"
+        #     f.write(res_line)
+        #     docid += 1
+        # f.close()
+        # ==========/ output sample results -- end /========== #
 
     # TSPR
-    tspr_matrix = get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size)
-    # np.savetxt('tspr_matrix.txt', tspr_matrix)
-    # TSPR - QTSPR  # a tspr_score_matrix_dict, saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
-    if pr_method == 'QTSPR':
-        pr_scores = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
-    # TSPR - PTSPR  # a tspr_score_matrix_dict, saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
-    if pr_method == 'PTSPR':
-        pr_scores = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
+    if pr_method == 'QTSPR' or pr_method == 'PTSPR':
+        pt_dict = get_pt("../../data/hw3-resources/doc_topics.txt", size)
+        tspr_matrix = get_tspr_matrix(alpha, beta, gamma,  M, pt_dict, p0, size)
+        # np.savetxt('tspr_matrix.txt', tspr_matrix)
+        # TSPR - QTSPR  # a tspr_score_matrix_dict, saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+        if pr_method == 'QTSPR':
+            qt_coeff_dict = get_coeff("../../data/hw3-resources/query-topic-distro.txt", size, topic_size, query_size)
+            pr_scores = get_tspr_score_matrix_dict(tspr_matrix, qt_coeff_dict)
+            # ==========/ output sample results -- start /========== #
+            # score_list = pr_scores[2][:, 0]
+            # f = open("QTSPR-U2Q1.txt", 'w')
+            # docid = 1
+            # for score in score_list:
+            #     res_line = str(docid) + " " + str(score) + "\n"
+            #     f.write(res_line)
+            #     docid += 1
+            # f.close()
+            # ==========/ output sample results -- end /========== #
+        # TSPR - PTSPR  # a tspr_score_matrix_dict, saves <uid, tspr_score_matrix>; tspr_score_matrix=[doc, qid]
+        if pr_method == 'PTSPR':
+            ut_coeff_dict = get_coeff("../../data/hw3-resources/user-topic-distro.txt", size, topic_size, query_size)
+            pr_scores = get_tspr_score_matrix_dict(tspr_matrix, ut_coeff_dict)
+            # ==========/ output sample results -- start /========== #
+            # score_list = pr_scores[2][:, 0]
+            # f = open("PTSPR-U2Q1.txt", 'w')
+            # docid = 1
+            # for score in score_list:
+            #     res_line = str(docid) + " " + str(score) + "\n"
+            #     f.write(res_line)
+            #     docid += 1
+            # f.close()
+            # ==========/ output sample results -- end /========== #
 
     # COMBINING SCORE CALCULATION & OUTPUT
     # read in file -> get file name<uid, qid> -> read in line
@@ -63,9 +95,11 @@ def main(argv):
     dir_path = '../../data/hw3-resources/indri-lists'
     print_combined_score(dir_path, combination_method, pr_method, pr_weight, sr_weight, pr_scores, output_filepath)
 
+    # TIMER END
+    print time.clock() - t0, "seconds wall time"
+
 
 def get_M(file_path, size):
-    # M = zeros((size, size))  # size * size
     row = []
     col = []
     data = []
@@ -85,16 +119,16 @@ def get_M(file_path, size):
     M = csr_matrix((data, (row, col)), shape=(size, size))
 
     # normalize
-    M_row_sums = np.array(M.sum(1))[:, 0]  # get the row sum of M and save into an array (1 means axis)
-    row_ids, _ = M.nonzero()  # the non-zero row ids
-    M.data /= M_row_sums[row_ids]  # normalize the non-zero rows
+    M_row_sums = np.array(M.sum(1))[:, 0]   # get the row sum of M and save into an array (1 means axis)
+    row_ids, _ = M.nonzero()                # the non-zero row ids
+    M.data /= M_row_sums[row_ids]           # normalize the non-zero rows
     return M
 
 
 def get_pt(file_path, size):
-    pt_dict = dict()  # save <topicid, vector(pt1, pt2, ..., ptn)>
+    pt_dict = dict()  # saves <topicid, vector(pt1, pt2, ..., ptn)>
 
-    # save <topicid, list(docid)> into a dict
+    # saves <topicid, list(docid)> into a dict
     dic = dict()
     with open(file_path) as f:
         line = f.readline().strip()
@@ -142,7 +176,7 @@ def get_gpr_score(alpha, M, p0, size):
     gpr.fill(1.0/float(size))
     # gpr = (1-alpha) * sparse.csr_matrix.transpose(M) * gpr + alpha * p0
     for i in range(10):
-        gpr = (1-alpha) * sparse.csr_matrix.transpose(M) * gpr + alpha * p0
+        gpr = alpha * sparse.csr_matrix.transpose(M) * gpr + (1-alpha) * p0
         print "GPR ITERATION " + str(i+1)
     return gpr
 
@@ -192,7 +226,7 @@ def print_combined_score(dir_path, combination_method, pr_method, pr_weight, sr_
                     combined_score = pr_score * pr_weight + sr_score * sr_weight
                 if combination_method == 'CM':
                     # TO-DO
-                    combined_score = pr_score
+                    combined_score = math.log(pr_score) * 0.1 + sr_score * 0.9
                 docid_score_list.append((docid, round(combined_score, 7)))  # round to 7 decimal digits
 
             docid_score_list = sorted(docid_score_list, key=lambda x: x[1], reverse=True)
